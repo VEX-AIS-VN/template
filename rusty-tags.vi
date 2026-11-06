@@ -8,6 +8,7 @@ CanonicalUnit	/home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shre
 Celsius	/home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shrewnit-0.2.1/src/dimensions.rs	/^impl<S: Scalar> UnitOf<S, Temperature<S>> for Celsius {$/;"	c
 DifferentialDriveOdometry	/share/program/vrc/stuff/src/odometry.rs	/^impl DifferentialDriveOdometry {$/;"	c
 DifferentialDriveOdometry	/share/program/vrc/stuff/src/odometry.rs	/^impl Tracking for DifferentialDriveOdometry {}$/;"	c
+DifferentialDriveOdometry	/share/program/vrc/stuff/src/odometry.rs	/^impl TracksForwardTravel for DifferentialDriveOdometry {$/;"	c
 DifferentialDriveOdometry	/share/program/vrc/stuff/src/odometry.rs	/^impl TracksHeading for DifferentialDriveOdometry {$/;"	c
 DifferentialDriveOdometry	/share/program/vrc/stuff/src/odometry.rs	/^impl TracksPosition for DifferentialDriveOdometry {$/;"	c
 DifferentialDriveOdometry	/share/program/vrc/stuff/src/odometry.rs	/^impl TracksVelocity for DifferentialDriveOdometry {$/;"	c
@@ -80,6 +81,7 @@ distance	/share/program/vrc/stuff/src/units.rs	/^    pub fn distance(&self, othe
 driver	/share/program/vrc/stuff/src/main.rs	/^    async fn driver(&mut self) {$/;"	P	implementation:Robot
 drivetrain	/share/program/vrc/stuff/src/main.rs	/^    drivetrain: Drivetrain<Differential, DifferentialDriveOdometry>,$/;"	m	struct:Robot
 eq	/share/program/vrc/stuff/src/units.rs	/^    fn eq(&self, other: &Translation) -> bool {$/;"	P	implementation:Translation
+forward_travel	/share/program/vrc/stuff/src/odometry.rs	/^    fn forward_travel(&self) -> f64 {$/;"	P	implementation:DifferentialDriveOdometry
 from	/share/program/vrc/stuff/src/units.rs	/^    fn from(value: Pose) -> Self {$/;"	P	implementation:Translation
 from	/share/program/vrc/stuff/src/units.rs	/^    fn from(value: Translation) -> Self {$/;"	P	implementation:Pose
 from_canonical	/home/me/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/shrewnit-0.2.1/src/dimensions.rs	/^    fn from_canonical(canonical: S) -> S {$/;"	P	implementation:Celsius

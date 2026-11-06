@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-use evian::prelude::{TracksHeading, TracksPosition, TracksVelocity};
+use evian::prelude::{TracksForwardTravel, TracksHeading, TracksPosition, TracksVelocity};
 
 use evian::tracking::Tracking;
 use vexide::prelude::Motor;
@@ -62,7 +62,6 @@ fn average_motor_position<const N: usize>(
     sum / count as f64
 }
 
-
 pub struct DifferentialDriveOdometry {
     data: Rc<RefCell<Localization>>,
     _task: Task<()>,
@@ -104,15 +103,15 @@ impl DifferentialDriveOdometry {
         let (sin_heading, cos_heading) = mid_heading.sin_cos();
 
         let translation = Translation::new(
-            displacement * sinc * cos_heading,
-            displacement * sinc * sin_heading,
+            displacement * cos_heading,
+            displacement * sin_heading,
         );
 
         let velocity = translation.clone() * (1.0 / dt);
 
         (
             translation,
-            (velocity.x * cos_heading + velocity.y * cos_heading).to::<Meters>() * MetersPerSecond
+            (velocity.x * cos_heading + velocity.y * sin_heading).to::<Meters>() * MetersPerSecond
         )
     }
 
@@ -137,6 +136,7 @@ impl DifferentialDriveOdometry {
     }
 
     // I LOVE ASYNC (i dont I HATE ASYNC AAAAAAAAAAAAAAAAAAAAAAAA)
+    // based on https://medium.com/@nahmed3536/wheel-odometry-model-for-differential-drive-robotics-91b85a012299
     async fn task<const N: usize>(
         data: Rc<RefCell<Localization>>,
         constants: DrivetrainConstants,
@@ -181,7 +181,6 @@ impl DifferentialDriveOdometry {
             }
 
             let (translation, velocity) = Self::calculate_translation(&constants, dleft, dright, omega, data.borrow().pose.angle, dt.to::<Seconds>());
-            println!("{} {}", translation.x.to::<Centimeters>(), translation.y.to::<Centimeters>());
 
             prev_left = left;
             prev_right = right;
@@ -193,6 +192,8 @@ impl DifferentialDriveOdometry {
                 velocity: velocity,
                 angular_velocity: omega / dt
             };
+
+            println!("{} {}", new.pose.translation.x.to::<Centimeters>(), new.pose.translation.y.to::<Centimeters>());
 
             *data.borrow_mut() = new;
         }
@@ -220,5 +221,11 @@ impl TracksVelocity for DifferentialDriveOdometry {
 
     fn angular_velocity(&self) -> f64 {
         (&self.data.borrow().angular_velocity).to::<RadiansPerSecond>()
+    }
+}
+
+impl TracksForwardTravel for DifferentialDriveOdometry {
+    fn forward_travel(&self) -> f64 {
+        (&self.data.borrow().pose).norm().to::<Meters>()
     }
 }

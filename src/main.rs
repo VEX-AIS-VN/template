@@ -3,9 +3,7 @@ use core::time::Duration;
 use shrewnit::Centimeters;
 use vexide::prelude::*;
 use evian::{
-    control::loops::{AngularPid, Pid},
-    drivetrain::model::Differential, tracking::shared_motors,
-    prelude::*
+    control::loops::{AngularPid, Pid}, drivetrain::model::Differential, motion::{Basic, Seeking}, prelude::*, tracking::shared_motors
 };
 
 mod units;
@@ -37,11 +35,24 @@ impl Robot {
 
 impl Compete for Robot {
     async fn autonomous(&mut self) {
-        println!("in auton");
+        
     }
 
     async fn driver(&mut self) {
         println!("hi");
+        let mut basic = Basic {
+            linear_controller: Self::LINEAR_PID,
+            angular_controller: Self::ANGULAR_PID,
+            linear_tolerances: Self::LINEAR_TOLERANCES,
+            angular_tolerances: Self::ANGULAR_TOLERANCES,
+            timeout: Some(Duration::from_secs(10)),
+        };
+
+        // Drive forwards at 60% speed.
+        basic
+            .drive_distance(&mut self.drivetrain, 24.0)
+            .with_linear_output_limit(0.5)
+            .await;
         loop {
             let state = self.controller.state().unwrap_or_default();
 
@@ -62,7 +73,7 @@ async fn main(peripherals: Peripherals) {
     ];
 
     let right_motors = shared_motors![
-        Motor::new(peripherals.port_10, Gearset::Green, Direction::Forward)
+        Motor::new(peripherals.port_10, Gearset::Green, Direction::Reverse)
     ];
 
     let constants = DrivetrainConstants {
