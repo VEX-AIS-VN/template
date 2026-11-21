@@ -1,6 +1,6 @@
 use core::time::Duration;
 
-use shrewnit::Centimeters;
+use shrewnit::{Centimeters, Inches, Meters};
 use vexide::prelude::*;
 use evian::{
     control::loops::{AngularPid, Pid}, drivetrain::model::Differential, motion::{Basic, Seeking}, prelude::*, tracking::shared_motors
@@ -9,10 +9,12 @@ use evian::{
 mod units;
 mod odometry;
 mod claw;
+mod movement;
 
+use movement::move_to_point;
 use odometry::{DifferentialDriveOdometry, DrivetrainConstants};
 
-use crate::claw::Arm;
+use crate::{claw::Arm, movement::MoveToPoint, units::Translation};
 
 struct Robot {
     drivetrain: Drivetrain<Differential, DifferentialDriveOdometry>,
@@ -21,8 +23,9 @@ struct Robot {
 }
 
 impl Robot {
-    const LINEAR_PID: Pid = Pid::new(1.0, 0.0, 0.125, None);
-    const ANGULAR_PID: AngularPid = AngularPid::new(16.0, 0.0, 1.0, None);
+    const LINEAR_PID: Pid = Pid::new(2.0, 0.001, 0.0101, Some(3.0));
+    const LATERAL_PID: Pid = Pid::new(1.0, 0.001, 0.004, Some(2.0));
+    const ANGULAR_PID: AngularPid = AngularPid::new(0.0, 0.0, 0.0, None);
     const LINEAR_TOLERANCES: Tolerances = Tolerances::new()
         .error(4.0)
         .velocity(0.25)
@@ -48,11 +51,22 @@ impl Compete for Robot {
             timeout: Some(Duration::from_secs(10)),
         };
 
-        // Drive forwards at 60% speed.
-        basic
-            .drive_distance(&mut self.drivetrain, 24.0)
-            .with_linear_output_limit(0.5)
-            .await;
+        let mut seeking = Seeking {
+            linear_controller: Self::LINEAR_PID,
+            lateral_controller: Self::LATERAL_PID,
+            tolerances: Tolerances::new()
+                .error(0.02),
+            timeout: None,
+        };
+
+        let mut constants = MoveToPoint {
+            linear_pid: Self::LINEAR_PID,
+            angular_pid: Self::LATERAL_PID,
+            tolerance: 0.1
+        };
+
+        move_to_point(&mut self.drivetrain, &mut constants, Translation::new(1.0 * Meters, 1.0 * Meters), 0.3).await;
+
         loop {
             let state = self.controller.state().unwrap_or_default();
 
@@ -77,7 +91,7 @@ async fn main(peripherals: Peripherals) {
     ];
 
     let constants = DrivetrainConstants {
-        wheel_diameter: 5.0 * Centimeters,
+        wheel_diameter: 4.0 * Inches,
         wheel_from_center: 15.0 * Centimeters
     };
 

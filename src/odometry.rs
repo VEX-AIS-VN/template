@@ -103,15 +103,16 @@ impl DifferentialDriveOdometry {
         let (sin_heading, cos_heading) = mid_heading.sin_cos();
 
         let translation = Translation::new(
-            displacement * cos_heading,
-            displacement * sin_heading,
+            displacement * cos_heading * sinc,
+            displacement * sin_heading * sinc,
         );
 
-        let velocity = translation.clone() * (1.0 / dt);
+        let linear_velocity =
+            (displacement * sinc).to::<Meters>() / dt * MetersPerSecond;
 
         (
             translation,
-            (velocity.x * cos_heading + velocity.y * sin_heading).to::<Meters>() * MetersPerSecond
+            linear_velocity
         )
     }
 
@@ -193,8 +194,6 @@ impl DifferentialDriveOdometry {
                 angular_velocity: omega / dt
             };
 
-            println!("{} {}", new.pose.translation.x.to::<Centimeters>(), new.pose.translation.y.to::<Centimeters>());
-
             *data.borrow_mut() = new;
         }
     }
@@ -221,11 +220,5 @@ impl TracksVelocity for DifferentialDriveOdometry {
 
     fn angular_velocity(&self) -> f64 {
         (&self.data.borrow().angular_velocity).to::<RadiansPerSecond>()
-    }
-}
-
-impl TracksForwardTravel for DifferentialDriveOdometry {
-    fn forward_travel(&self) -> f64 {
-        (&self.data.borrow().pose).norm().to::<Meters>()
     }
 }

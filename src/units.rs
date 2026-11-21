@@ -212,6 +212,12 @@ impl Into<evian::math::Vec2<f64>> for &Pose {
     }
 }
 
+impl From<evian::math::Vec2<f64>> for Translation {
+    fn from(value: evian::math::Vec2<f64>) -> Self {
+        Translation::new(value.x() * Meters, value.y() * Meters)
+    }
+}
+
 macro_rules! impl_owned {
     ($x:ident, $op:ident, $y:ident) => {
         impl $x<$y> for $y {

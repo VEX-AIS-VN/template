@@ -15,8 +15,8 @@ icon = "cool-x"
 compress = true
 
 [dependencies]
-evian = { git = "https://github.com/vexide/evian.git" }
+evian = { git = "https://github.com/VEX-AIS-VN/evian.git" }
 shrewnit = "0.2.1"
-vexide = { version = "0.8.0", features = ["full", "default-sdk"] }
+vexide = { version = "0.9.0-beta.1", features = ["full", "default-sdk"] }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
