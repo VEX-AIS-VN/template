@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-use evian::prelude::{TracksForwardTravel, TracksHeading, TracksPosition, TracksVelocity};
+use evian::prelude::{TracksHeading, TracksPosition, TracksVelocity};
 
 use evian::tracking::Tracking;
 use vexide::prelude::Motor;
@@ -48,11 +48,9 @@ fn average_motor_position<const N: usize>(
 
     let mut count = 1;
 
-    for motor in motors.iter() {
-        if let Ok(position) = motor.position() {
-            sum += position.as_radians() * Radians;
-            count += 1
-        }
+    for position in motors.iter().filter_map(|m| m.position().ok()) {
+        sum += position.as_radians() * Radians;
+        count += 1
     }
 
     if count > 1 {
@@ -87,11 +85,17 @@ impl DifferentialDriveOdometry {
         prev_heading: Angle,
         dt: f64
     ) -> (Translation, LinearVelocity) {
-        let displacement: Length = constants.wheel_diameter / 2.0
+        // models a robot driving in an arc. imagine that each time step (each time odom runs), the
+        // robot moves in a path that is curved around a circle with a center. it might not exactly
+        // be a circle, but its "close enough" and simpler
+
+        let arc: Length = constants.wheel_diameter / 2.0
             * (dleft + dright).to::<Rotations>()
             * PI;
 
         let half_angle = (omega / 2.0).to::<Radians>();
+
+        // sinc(x) = sin x / x if x != 0, 1 if x = 0
         let sinc = if half_angle.abs() < 1e-6 {
             1.0
         } else {
@@ -102,13 +106,30 @@ impl DifferentialDriveOdometry {
             (prev_heading + omega / 2.0).to::<Radians>();
         let (sin_heading, cos_heading) = mid_heading.sin_cos();
 
+        // explanation for multiplying by sinc: imagine an arc. its
+        // angle is omega, and the arc length is a (arc length).
+        //
+        // a = omega * radius of the circle  (arc length formula, substituting omega for theta)
+        // r = a / omega
+        //
+        // the chord formed creates an isoceles triangle. try drawing the triangle out. as such, d /
+        // sin(omega) (d is the chord length) = r / sin(pi/2 - omega/2) = r / cos(omega/2).
+        //
+        // r / cos(omega/2) = d / sin(omega)
+        // d = r sin(omega)/cos(omega / 2)
+        //   = r 2 sin(omega / 2) cos(omega / 2) / cos(omega / 2)
+        //   = 2r sin(omega / 2)
+        //   = 2 a sin(omega / 2) / omega  (substituting r = a / omega)
+        //
+        // there is no multiplication of sin or cos because d is in x or y, which is converted by
+        // the multiplications to sin and cos
         let translation = Translation::new(
-            displacement * cos_heading * sinc,
-            displacement * sin_heading * sinc,
+            arc * cos_heading * sinc,
+            arc * sin_heading * sinc,
         );
 
         let linear_velocity =
-            (displacement * sinc).to::<Meters>() / dt * MetersPerSecond;
+            (arc * sinc).to::<Meters>() / dt * MetersPerSecond;
 
         (
             translation,
@@ -167,6 +188,7 @@ impl DifferentialDriveOdometry {
         loop {
             sleep(Motor::UPDATE_INTERVAL).await;
             let dt = prev_time.elapsed().as_secs_f64() * Seconds;
+            prev_time = Instant::now();
 
             let left = average_motor_position(&left_motors);
             let right = average_motor_position(&right_motors);
@@ -186,13 +208,13 @@ impl DifferentialDriveOdometry {
             prev_left = left;
             prev_right = right;
 
-            prev_time = Instant::now();
-
             let new = Localization {
                 pose: &data.borrow().pose + &Pose::new(translation, omega),
                 velocity: velocity,
                 angular_velocity: omega / dt
             };
+
+            println!("{}", new.pose.translation);
 
             *data.borrow_mut() = new;
         }

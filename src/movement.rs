@@ -1,7 +1,8 @@
 use std::time::{Duration, Instant};
+use core::f64::consts::{TAU, PI};
 
 use evian::{control::loops::{Feedback, Pid}, drivetrain::{Drivetrain, model::{Differential, Tank}}, tracking::{TracksHeading, TracksPosition}};
-use shrewnit::Meters;
+use shrewnit::{Meters, Radians};
 use vexide::{smart::motor::Motor, time::sleep};
 
 use crate::units::Translation;
@@ -23,17 +24,22 @@ pub async fn move_to_point(
     loop {
 
         let dt = Instant::now() - prev;
-        let delta: Translation = &point - &Translation::from(drivetrain.tracking.position());
+        prev = Instant::now();
+        let position = drivetrain.tracking.position();
+        let delta: Translation = &point - &Translation::from(position);
         let dist = delta.norm().to::<Meters>();
 
         if dist < constants.tolerance {
-            drivetrain.model.drive_tank(0.0, 0.0);
+            let _ = drivetrain.model.drive_tank(0.0, 0.0);
             break;
         }
 
         let linpid = constants.linear_pid.update(0.0, dist, dt);
 
-        let target_angle = delta.y.to::<Meters>().atan2(delta.x.to::<Meters>());
+        let mut target_angle = delta.heading().to::<Radians>();
+        if target_angle > PI {
+            target_angle = TAU - target_angle;
+        }
         let anpid = constants.angular_pid.update(drivetrain.tracking.heading().as_radians(), target_angle, dt);
 
         let left_voltage = linpid - anpid;
@@ -42,15 +48,11 @@ pub async fn move_to_point(
         let scale = left_voltage.abs().max(right_voltage.abs()) / max_voltage;
 
         if scale > 1.0 {
-            drivetrain.model.drive_tank(left_voltage / scale, right_voltage / scale);
+            let _ = drivetrain.model.drive_tank(left_voltage / scale, right_voltage / scale);
         }
         else {
-            drivetrain.model.drive_tank(left_voltage, right_voltage);
+            let _ = drivetrain.model.drive_tank(left_voltage, right_voltage);
         }
-
-        println!("{} {}", drivetrain.tracking.position().x(), drivetrain.tracking.position().y());
-
-        prev = Instant::now();
 
         sleep(Motor::WRITE_INTERVAL).await;
     }

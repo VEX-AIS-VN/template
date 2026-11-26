@@ -1,4 +1,5 @@
 use core::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
+use core::fmt::Display;
 
 use shrewnit::prelude::*;
 
@@ -19,9 +20,13 @@ impl Translation {
         Self { x: Length::from_canonical(0.0), y: Length::from_canonical(0.0) }
     }
 
+    pub fn from_meters(x: f64, y: f64) -> Self {
+        Self { x: x * Meters, y: y * Meters }
+    }
+
     /// Gets the Euclidean norm of the vector, being its magnitude from the (relative) origin.
     pub fn norm(&self) -> Length {
-        Length::from_canonical((self.x * self.x + self.y * self.y).canonical().sqrt())
+        self.norm_squared().sqrt() * Meters
     }
 
     /// Gets the angle of the vector compared with the origin.
@@ -47,6 +52,12 @@ impl Translation {
     pub fn rotate(&self, angle: Angle) -> Translation {
         let (sin_theta, cos_theta) = angle.to::<Radians>().sin_cos();
         Translation::new(self.x * cos_theta - self.y * sin_theta, self.x * sin_theta + self.y * cos_theta)
+    }
+}
+
+impl Display for Translation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Translation({}, {})", self.x.to::<Meters>(), self.y.to::<Meters>())
     }
 }
 
@@ -215,6 +226,12 @@ impl Into<evian::math::Vec2<f64>> for &Pose {
 impl From<evian::math::Vec2<f64>> for Translation {
     fn from(value: evian::math::Vec2<f64>) -> Self {
         Translation::new(value.x() * Meters, value.y() * Meters)
+    }
+}
+
+impl From<(Length, Length)> for Translation {
+    fn from(value: (Length, Length)) -> Self {
+        Translation::new(value.0, value.1)
     }
 }
 

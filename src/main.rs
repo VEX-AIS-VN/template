@@ -1,6 +1,9 @@
+#[cfg(target_os = "vexos")]
+use vex_sdk_jumptable as _;
+
 use core::time::Duration;
 
-use shrewnit::{Centimeters, Inches, Meters};
+use shrewnit::{Centimeters, Inches};
 use vexide::prelude::*;
 use evian::{
     control::loops::{AngularPid, Pid}, drivetrain::model::Differential, motion::{Basic, Seeking}, prelude::*, tracking::shared_motors
@@ -14,7 +17,7 @@ mod movement;
 use movement::move_to_point;
 use odometry::{DifferentialDriveOdometry, DrivetrainConstants};
 
-use crate::{claw::Arm, movement::MoveToPoint, units::Translation};
+use crate::{claw::Arm, movement::MoveToPoint};
 
 struct Robot {
     drivetrain: Drivetrain<Differential, DifferentialDriveOdometry>,
@@ -24,10 +27,11 @@ struct Robot {
 
 impl Robot {
     const LINEAR_PID: Pid = Pid::new(2.0, 0.001, 0.0101, Some(3.0));
-    const LATERAL_PID: Pid = Pid::new(1.0, 0.001, 0.004, Some(2.0));
+    const LATERAL_PID: Pid = Pid::new(0.09, 0.001, 0.004, Some(2.0));
+
     const ANGULAR_PID: AngularPid = AngularPid::new(0.0, 0.0, 0.0, None);
     const LINEAR_TOLERANCES: Tolerances = Tolerances::new()
-        .error(4.0)
+        .error(0.05)
         .velocity(0.25)
         .duration(Duration::from_millis(15));
     const ANGULAR_TOLERANCES: Tolerances = Tolerances::new()
@@ -55,7 +59,7 @@ impl Compete for Robot {
             linear_controller: Self::LINEAR_PID,
             lateral_controller: Self::LATERAL_PID,
             tolerances: Tolerances::new()
-                .error(0.02),
+                .error(0.07),
             timeout: None,
         };
 
@@ -65,7 +69,9 @@ impl Compete for Robot {
             tolerance: 0.1
         };
 
-        move_to_point(&mut self.drivetrain, &mut constants, Translation::new(1.0 * Meters, 1.0 * Meters), 0.3).await;
+        seeking.move_to_point(&mut self.drivetrain, (1.0, 0.0))
+            .with_linear_output_limit(0.5)
+            .await;
 
         loop {
             let state = self.controller.state().unwrap_or_default();
@@ -80,8 +86,28 @@ impl Compete for Robot {
     }
 }
 
+async fn stall_until_sim() {
+    use vex_sdk::{V5_DeviceType, vexDeviceGetStatus, V5_MAX_DEVICE_PORTS};
+    unsafe {
+        println!("Waiting for a motor to connect on port 1...");
+        let mut devices = [V5_DeviceType::kDeviceTypeNoSensor; V5_MAX_DEVICE_PORTS];
+        loop {
+            vexDeviceGetStatus(devices.as_mut_ptr());
+            if devices[0] == V5_DeviceType::kDeviceTypeMotorSensor {
+                break;
+            }
+            sleep(Duration::from_millis(250)).await;
+        }
+    }
+}
+
 #[vexide::main]
 async fn main(peripherals: Peripherals) {
+    #[cfg(not(target_os = "vexos"))]
+    vex_sdk_desktop::init().expect("Simulator should initialize");
+    #[cfg(not(target_os = "vexos"))]
+    stall_until_sim().await;
+
     let left_motors = shared_motors![
         Motor::new(peripherals.port_1, Gearset::Green, Direction::Forward)
     ];

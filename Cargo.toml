@@ -15,8 +15,15 @@ icon = "cool-x"
 compress = true
 
 [dependencies]
-evian = { git = "https://github.com/VEX-AIS-VN/evian.git" }
-shrewnit = "0.2.1"
-vexide = { version = "0.9.0-beta.1", features = ["full", "default-sdk"] }
+evian = { git = "https://github.com/VEX-AIS-VN/evian" }
+shrewnit = { git = "https://github.com/VEX-AIS-VN/shrewnit" }
+vexide = { version = "0.9.0-beta.1", features = ["full"] }
+vex-sdk = "0.29.0-rc.1"
+
+[target.'cfg(target_os = "vexos")'.dependencies]
+vex-sdk-jumptable = "0.2.0-rc.1"
+
+[target.'cfg(not(target_os = "vexos"))'.dependencies]
+vex-sdk-desktop = { git = "https://github.com/vexide/roboscope" }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
